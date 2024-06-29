@@ -1,0 +1,7 @@
+langchain_openai
+langchain
+langchain_core
+python-dotenv
+langchain_community
+huggingface_hub
+langgraph
