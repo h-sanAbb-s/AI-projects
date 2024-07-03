@@ -12,6 +12,7 @@ class AgentTutor(TypedDict):
     plan: str
     route: str
     context: str
+    response: str
     chatHistory: Annotated[Sequence[BaseMessage], operator.add]
 
 workflow = StateGraph(AgentTutor)
@@ -35,8 +36,4 @@ workflow.add_edge("explainer", END)
 
 app = workflow.compile()
 
-chatHistory = [
-    {"role":"user", "content":"What is the best os for me?"},
-    {"role":"assistant","content":"It truly depends on what you want the most. Speed? Security? it depends"}
-    ]
-print(app.invoke({"query": "What are many types of os?", "chatHistory": []}))
+

@@ -7,31 +7,32 @@ from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.llms.huggingface import HuggingFaceInferenceAPI
 from llama_index.core import Settings
+from langchain.utilities import WikipediaAPIWrapper
+from langchain.tools import DuckDuckGoSearchRun
+
 from agents import routerAgent, plannerAgent, explainerAgent
 from dotenv import load_dotenv
 load_dotenv(r'langGraph\Minimal-Tutor-AI\.env.local')
-embedding_api_key = os.getenv('EMBEDDINGS_API_KEY')
-HUGGINGFACE_API_KEY = os.getenv('HUGGINGFACE_API_KEY')
-CONTEXT = None
-PLAN = None
 
 embeddings = HuggingFaceInferenceAPIEmbeddings(
-    api_key=embedding_api_key,
+    api_key=os.getenv('EMBEDDINGS_API_KEY'),
     model_name="sentence-transformers/all-MiniLM-l6-v2",
 )
 
 llm = HuggingFaceInferenceAPI(
     model_name="mistralai/Mistral-7B-Instruct-v0.3",
-    token=HUGGINGFACE_API_KEY
+    token=os.getenv('HUGGINGFACE_API_KEY')
 )
+
 
 Settings.llm = llm
 Settings.embed_model = embeddings
 
 def router(state):
+    print("\nRouting... ")
     query = state['query']
-    route = routerAgent.invoke(query)
-    print(route.route)
+    chatHistory = state['chatHistory']
+    route = routerAgent.invoke({"query":query,"chatHistory":chatHistory})
     return {"route":route.route}
 
 def setup_query_engine(path):
@@ -50,68 +51,58 @@ def setup_query_engine(path):
     retriever = VectorIndexRetriever(index=index, similarity_top_k=3)
     return RetrieverQueryEngine(retriever=retriever)
 
-query_engine = setup_query_engine(r"langGraph\Minimal-Tutor-AI\data")
 
 def contextData(state):
+    print("\nFinding context ...")
     """
     Perform a web search using Wikipedia, DuckDuckGo, and a local vector store.
-
     Args:
     query (str): The search query.
-
     Returns:
-    dict: A dictionary containing Wikipedia, DuckDuckGo, and vector store search results.
+    str: A string containing combined search results from Wikipedia, DuckDuckGo, and vector store.
     """
     query = state["query"]
-    retriever = WikipediaRetriever(top_k_results=1, doc_content_chars_max=100)
-
+    # Wikipedia search
+    wikipedia = WikipediaAPIWrapper(top_k_results = 1, doc_content_chars_max = 500)
+    search = DuckDuckGoSearchRun()
     try:
-        wiki_result = retriever.invoke(query)
-    except:
-        wiki_result = "No relevant information found on Wikipedia."
-
+        wiki_result = wikipedia.run(query)
+    except Exception as e:
+        wiki_result = f"An error occurred during Wikipedia search: {str(e)}"
     # DuckDuckGo search
     try:
-        with DDGS() as ddgs:
-            ddg_results = [r for r in ddgs.text(query, max_results=3)]
-        ddg_result = "\n".join([f"Title: {r['title']}\nSnippet: {r['body']}" for r in ddg_results])
-
+        ddg_result = search.run(query)
     except Exception as e:
-        ddg_result = f"An unexpected error occurred during DuckDuckGo search. Error: {str(e)}"
-    # Vector store query
-    vector_store_result = str(query_engine.query(query))
-    print(wiki_result)
-    print(ddg_result)
-    print(vector_store_result)
+        ddg_result = f"An error occurred during DuckDuckGo search: {str(e)}"
+    # Vector store search (placeholder)
+    try:
+        query_engine = setup_query_engine(r"langGraph\Minimal-Tutor-AI\data")
+        vector_store_result = str(query_engine.get_relevant_documents(query))
+    except Exception as e:
+        vector_store_result = f"An error occurred during vector store search: {str(e)}"
     data = {
         "wikiPedia": wiki_result,
         "duckduckGo": ddg_result,
         "userData": vector_store_result
     }
-    context =  f"""User DATA (HIGHES PRIORITY FOR REFERENCE): {data['userData']}\nSecondary Sources from internet:{data['duckduckGo']}\n{data['wikiPedia']}"""
-    print(context)
-    return context
-    
+    context = f"""User DATA (HIGHEST PRIORITY FOR REFERENCE): {data['userData']}\nSecondary Sources from internet:\nDUCKDUCKGO SAYS: {data['duckduckGo']}\nWIKIPEDIA SAYS: {data['wikiPedia']}"""
+    return {"context":context}
+
 def planner(state):
+    print("\nPLANNING Ahead ...")
     query = state['query']
-    context = state['context']
-    plan = plannerAgent.invoke({"query":query, "context":context})
-    print(plan.plan)
-    return plan.plan
+    context = state['tableOfContent']
+    chatHistory = state['chatHistory']
+    plan = plannerAgent.invoke({"query":query, "context":context, "chatHistory":chatHistory})
+    return {"plan":plan.plan}
 
 def explainer(state):
+    print("\nResponding...\n")
     query = state['query']
-    if state['context']:
-        context = state['context']
-        plan = state['plan']
-        CONTEXT = context
-        PLAN = plan
-    else:
-        context = CONTEXT
-        plan = PLAN
-
+    route = state['route']
+    context = state["context"]
+    plan = state['plan']
     chatHistory = state['chatHistory']
 
     response = explainerAgent.invoke({"query":query, "context":context, "chatHistory":chatHistory,"plan":plan})
-    print(response.response)
-    return response.response
+    return {"response":response.response}

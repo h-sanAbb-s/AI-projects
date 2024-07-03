@@ -1,20 +1,13 @@
 from langchain_openai import ChatOpenAI
 from langchain.chains.openai_functions import create_structured_output_runnable
 from langchain_core.pydantic_v1 import BaseModel, Field
-from langchain_community.llms import HuggingFaceEndpoint
-from prompts import routerPrompt, plannerPrompt, explainerPrompt
+from prompts import routerPrompt, explainerPrompt, plannerPrompt
 import os
 from dotenv import load_dotenv
-load_dotenv(r'langGraph\Minimal-Tutor-AI\.env.local')
-
-os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
+load_dotenv(r"langGraph\Minimal-Tutor-AI\.env.local")
+os.environ['OPENAI_API_KEY']  = os.getenv('OPENAI_API_KEY')
 llm = ChatOpenAI(model = 'gpt-3.5-turbo')
-# llm = HuggingFaceEndpoint(
-#         huggingfacehub_api_token=HUGGINGFACE_API_KEY,
-#         repo_id = "mistralai/Mixtral-8x7B-Instruct-v0.1",
-#         temperature = 0.5,
-#         model_kwargs={"max_length": 200}
-#         )
+
 class Router(BaseModel):
 
     route: str = Field(
@@ -29,7 +22,7 @@ routerAgent = create_structured_output_runnable(
 class planner(BaseModel):
 
     plan: str = Field(
-        description="A step by step guidelines for teaching a new concept. could of varying length"
+        description="A step by step guidelines for teaching a new concept"
     )
 
 plannerAgent = create_structured_output_runnable(
@@ -45,5 +38,3 @@ class explainer(BaseModel):
 explainerAgent = create_structured_output_runnable(
     explainer, llm, explainerPrompt
 )
-
-
