@@ -1,14 +1,14 @@
-from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
-from llama_index.llms.huggingface import HuggingFaceInferenceAPI
+# from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
+# from llama_index.llms.huggingface import HuggingFaceInferenceAPI
 from agents import superVisorAgent, plannerAgent, explainerAgent
-from tools import tools
+# from tools import tools
 
 def getUserData():
     weakpoints = """
     My weakpoints are working with reactions, specially one that involves a catalyst or oxidizing or reducing agents.
     """
     sessionHistory = """
-    Hasan learned about 
+    Hasan learned about
     1. Oxidizing agents
     2. Reducing agents
     3. Redox reactions
@@ -26,8 +26,9 @@ def planner(state):
     weakpoints = userData["weakPoints"]
     sessionHistory = userData["sessionHistory"]
     chatHistory = state["chatHistory"]
-    response = plannerAgent.invoke({"chatHistory":chatHistory,"sessionHistory":sessionHistory,"weakPoints":weakpoints})
-    print("Planner Returned: ", response)
+    plan = state["plan"]
+    tip = state["tip"]
+    response = plannerAgent.invoke({"chatHistory":chatHistory,"sessionHistory":sessionHistory,"weakPoints":weakpoints, "plan":plan, "tip":tip, "input":chatHistory[-1]["content"]})
     return {"plan":response.plan, "tip":response.tip}
 
 
@@ -41,13 +42,12 @@ def superVisor(state):
     else:
         plan = state["plan"]
 
-    response = superVisorAgent.invoke({"chatHistory":chatHistory,"plan":plan}) 
-    print("SuperVisor Returned: ", response.route)
+    response = superVisorAgent.invoke({"chatHistory":chatHistory,"plan":plan, "input":chatHistory[-1]["content"]})
     return {"route":response.route}
 
 def explainer(state):
     """
-    for explaining in an interactive, friendly and step by step way. 
+    for explaining in an interactive, friendly and step by step way.
     """
     plan = state["plan"]
     chatHistory = state["chatHistory"]
