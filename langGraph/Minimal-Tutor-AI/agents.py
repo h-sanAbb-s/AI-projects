@@ -1,40 +1,49 @@
 from langchain_openai import ChatOpenAI
 from langchain.chains.openai_functions import create_structured_output_runnable
 from langchain_core.pydantic_v1 import BaseModel, Field
-from prompts import routerPrompt, explainerPrompt, plannerPrompt
+from langchain.agents import AgentExecutor, create_react_agent
+from langchain import PromptTemplate
+from tools import tools
+from prompts import superVisorPrompt, explainerPrompt, plannerPrompt
 import os
 from dotenv import load_dotenv
 load_dotenv(r"langGraph\Minimal-Tutor-AI\.env.local")
 os.environ['OPENAI_API_KEY']  = os.getenv('OPENAI_API_KEY')
 llm = ChatOpenAI(model = 'gpt-3.5-turbo')
 
-class Router(BaseModel):
+######################################################
+class superVisor(BaseModel):
 
     route: str = Field(
-        description="continuation or newConcept"
+        description="replan or continue"
     )
 
-routerAgent = create_structured_output_runnable(
-    Router, llm, routerPrompt
-)
+superVisorAgent = create_structured_output_runnable(
+    superVisor, llm, superVisorPrompt)
 
-
+#######################################################
 class planner(BaseModel):
 
     plan: str = Field(
-        description="A step by step guidelines for teaching a new concept"
+        description="A step by step plan"
     )
-
+    tip: str = Field(
+        description="A small list of tips addressing teaching style and user specific needs"
+    )
 plannerAgent = create_structured_output_runnable(
     planner, llm, plannerPrompt
 )
 
+########################################################
+# agent = create_react_agent(llm, tools, explainerPrompt)
+# explainerAgent = AgentExecutor(agent=agent, tools=tools, verbose=True, handle_parsing_errors=True)
 class explainer(BaseModel):
 
     response: str = Field(
-        description="a response that follows the plan and answers the query in a friendly, interactive and professional way"
+        description="Explaing concept, solving problem or an advice"
     )
 
 explainerAgent = create_structured_output_runnable(
     explainer, llm, explainerPrompt
 )
+
